@@ -113,10 +113,10 @@
                 </select>
 
             <label for="home">Your Location</label>
-            <input type="text" id="home" name="home">
+            <input type="text" id="home" name="home" required>
 
             <label for="dealer">Preferred Dealer Location</label>
-            <input type="text" id="dealer" name="dealer">
+            <input type="text" id="dealer" name="dealer" required>
     
             <label for="date">Preferred Delivery Date</label>
             <input type="date" id="date" name="date" required>
@@ -124,6 +124,8 @@
             <label for="pesan">Additional Notes</label>
             <textarea id="pesan" name="pesan" rows="4" cols="50" required></textarea><br><br>
 
+            <label for="tnc"><input type="checkbox" name="tnc" id="tnc" required> I Agree with Term & Condition.</label>
+            <label for="tnc"><input type="checkbox" name="inf" id="inf" required>  Subscribe to our newsletter.</label>
             <button type="submit">Submit Booking</button>
         </form>
     </section>
